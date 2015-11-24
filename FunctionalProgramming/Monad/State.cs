@@ -53,6 +53,11 @@ namespace FunctionalProgramming.Monad
             return new State<TState, TValue>(s => Tuple.Create(s, f(s)));    
         }
 
+        public static State<TState, Unit> Put<TState>(this TState newState)
+        {
+            return new State<TState, Unit>(oldState => Tuple.Create(newState, Unit.Only));
+        }
+
         public static State<TState, Unit> Mod<TState>(this Func<TState, TState> f)
         {
             return new State<TState, Unit>(s => Tuple.Create(f(s), Unit.Only));

@@ -1,12 +1,15 @@
-﻿using System;
+﻿using System.Net.NetworkInformation;
+using FunctionalProgramming.Monad;
+using FunctionalProgramming.Monad.Outlaws;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Net.NetworkInformation;
 using System.Threading.Tasks;
-using FunctionalProgramming.Monad;
-using FunctionalProgramming.Monad.Outlaws;
-using BF = FunctionalProgramming.Basics.BasicFunctions;
+using FunctionalProgramming.Monad.Parsing;
+using FunctionalProgramming.Monad.Transformer;
 
 namespace FunctionalProgramming.Basics
 {
@@ -135,12 +138,12 @@ namespace FunctionalProgramming.Basics
         /// This is the sequence for Try computations
         /// </summary>
         /// <typeparam name="T">Type of value yielded by each computation</typeparam>
-        /// <param name="tryTs">The list of computations</param>
+        /// <param name="tries">The list of computations</param>
         /// <returns>A computation thqt yields a sequence of values of type 'T</returns>
-        public static Try<IEnumerable<T>> Sequence<T>(this IEnumerable<Try<T>> tryTs)
+        public static Try<IEnumerable<T>> Sequence<T>(this IEnumerable<Try<T>> tries)
         {
             var initial = Try.Attempt(() => ConsList.Nil<T>());
-            return tryTs.Reverse().Aggregate(initial, (current, aTry) => current.SelectMany(ts => aTry.Select(t => t.Cons(ts)))).Select(tries => tries.AsEnumerable());
+            return tries.Reverse().Aggregate(initial, (current, aTry) => current.SelectMany(ts => aTry.Select(t => t.Cons(ts)))).Select(ts => ts.AsEnumerable());
         }
 
         /// <summary>
@@ -157,6 +160,66 @@ namespace FunctionalProgramming.Basics
         public static Try<IEnumerable<T2>> Traverse<T1, T2>(this IEnumerable<T1> xs, Func<T1, Try<T2>> f)
         {
             return xs.Select(f).Sequence();
+        }
+
+        public static StateEither<TState, TLeft, IEnumerable<TRight>>  Sequence<TState, TLeft, TRight>(this IEnumerable<StateEither<TState, TLeft, TRight>> stateTs)
+        {
+            return new StateEither<TState, TLeft, IEnumerable<TRight>>(new State<TState, IEither<TLeft, IEnumerable<TRight>>>(s =>
+            {
+                var retval = ConsList.Nil<TRight>().AsRight<TLeft, IConsList<TRight>>();
+                foreach (var state in stateTs)
+                {
+                    var res = state.Out.Run(s);
+                    s = res.Item1;
+                    retval =
+                        from xs in retval
+                        from x in res.Item2
+                        select x.Cons(xs);
+                }
+                return Tuple.Create(s, retval.Select(xs => xs.AsEnumerable().Reverse()));
+            }));
+
+            //var initial = ConsList.Nil<TRight>().InsertRight<TState, TLeft, IConsList<TRight>>();
+            //return stateTs.Aggregate(initial, (current, aStateEither) => current.SelectMany(ts => aStateEither.Select(t => t.Cons(ts)))).Select(ts => ts.AsEnumerable().Reverse());
+        }
+
+        public static StateEither<TState, TLeft, IEnumerable<TResult>> Traverse<TState, TLeft, TRight, TResult>(
+            this IEnumerable<TRight> stateTs, Func<TRight, StateEither<TState, TLeft, TResult>> f)
+        {
+            return stateTs.Select(f).Sequence();
+        }
+
+        public static IEither<TLeft, IEnumerable<TRight>> Sequence<TLeft, TRight>(this IEnumerable<IEither<TLeft, TRight>> xs)
+        {
+            var initial = ConsList.Nil<TRight>().AsRight<TLeft, IConsList<TRight>>();
+            return xs.Aggregate(initial, (current, anEither) => current.SelectMany(ts => anEither.Select(t => t.Cons(ts)))).Select(eithers => eithers.AsEnumerable().Reverse());
+        }
+
+        public static StateIo<TState, IEnumerable<TValue>> Sequence<TState, TValue>(
+            this IEnumerable<StateIo<TState, TValue>> stateTs)
+        {
+            var initial = ConsList.Nil<TValue>().ToStateIo<TState, IConsList<TValue>>();
+            return
+                stateTs.Aggregate(initial,
+                    (current, anIoState) => current.SelectMany(ts => anIoState.Select(t => t.Cons(ts))))
+                    .Select(ioStates => ioStates.AsEnumerable().Reverse());
+        }
+
+        public static StateIo<TState, IEnumerable<TValue>> Traverse<TState, TInitial, TValue>(
+            this IEnumerable<TInitial> xs, Func<TInitial, StateIo<TState, TValue>> f)
+        {
+            return xs.Select(f).Sequence();
+        }
+
+        public static IoTry<IEnumerable<T>> Sequence<T>(this IEnumerable<IoTry<T>> ioTs)
+        {
+            var initial = Io.Apply(() => ConsList.Nil<T>()).ToIoTry();
+            return ioTs.Aggregate(initial, (current, maybe) => current.SelectMany(ts => maybe.Select(t => t.Cons(ts)))).Select(xs => xs.AsEnumerable());
+        }
+
+        public static IoTry<IEnumerable<T2>> Traverse<T1, T2>(this IEnumerable<T1> ioTs, Func<T1, IoTry<T2>> f)
+        {
+            return ioTs.Select(f).Sequence();
         }
 
         /// <summary>
@@ -183,7 +246,7 @@ namespace FunctionalProgramming.Basics
         /// <returns>The value lifted to the category IEnumerable</returns>
         public static IEnumerable<T> LiftEnumerable<T>(this T t)
         {
-            return new[] {t};
+            return new[] { t };
         }
 
         /// <summary>
@@ -193,8 +256,7 @@ namespace FunctionalProgramming.Basics
         /// <returns>A string that is the result of concatenating the characters together</returns>
         public static string MkString(this IEnumerable<char> chars)
         {
-            var sm = StringMonoid.Only;
-            return chars.Select(c => c.ToString(CultureInfo.InvariantCulture)).Aggregate(sm.MZero, sm.MAppend);
+            return new string(chars.ToArray());
         }
 
         /// <summary>
@@ -231,6 +293,57 @@ namespace FunctionalProgramming.Basics
         public static IMaybe<T> MaybeFirst<T>(this IQueryable<T> ts) where T : class
         {
             return ts.MaybeFirst(t => true);
-        } 
+        }
+
+        /// <summary>
+        /// Type-safe version of LINQs 'Single' and 'SingleOrDefault' function that accepts a predicate, returning
+        /// a Maybe instead of possibly throwing an exception or returning null
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="ts">An enumerable from which we want the only element that satisfies the provided predicate</param>
+        /// <param name="predicate">A predicate for which only one element will satisfy to be the return value</param>
+        /// <returns>The only value in the enumerable that satisfies the predicate, or nothing if no such element exists or multiple elements satisifying the predicate exist</returns>
+        public static IMaybe<T> MaybeSingle<T>(this IEnumerable<T> ts, Func<T, bool> predicate) where T : class
+        {
+            return Try.Attempt(() => ts.SingleOrDefault(predicate).ToMaybe()).AsMaybe().Join();
+        }
+
+        /// <summary>
+        /// Type-safe version of LINQs 'Single' and 'SingleOrDefault' function that returns a Maybe 
+        /// instead of possibly throwing an exception or returning null
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="ts">An enumerable of elements that we want the only element of</param>
+        /// <returns>The only value in the enumerable, or nothing if no such element exists or multiple elements exist</returns>
+        public static IMaybe<T> MaybeSingle<T>(this IEnumerable<T> ts) where T : class
+        {
+            return ts.MaybeSingle(BasicFunctions.Const<T, bool>(true));
+        }
+
+        /// <summary>
+        /// Type-safe version of LINQs 'Single' and 'SingleOrDefault' function that accepts a predicate, returning
+        /// a Maybe instead of possibly throwing an exception or returning null
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="ts">A queryable from which we want the only element that satisfies the provided predicate</param>
+        /// <param name="predicate">A predicate for which only one element will satisfy to be the return value</param>
+        /// <returns>The only value in the queryable that satisfies the predicate, or nothing if no such element exists or multiple elements satisifying the predicate exist</returns>
+        public static IMaybe<T> MaybeSingle<T>(this IQueryable<T> ts, Expression<Func<T, bool>> predicate)
+            where T : class
+        {
+            return Try.Attempt(() => ts.SingleOrDefault(predicate).ToMaybe()).AsMaybe().Join();
+        }
+
+        /// <summary>
+        /// Type-safe version of LINQs 'Single' and 'SingleOrDefault' function that returns a Maybe 
+        /// instead of possibly throwing an exception or returning null
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="ts">A queryable of elements that we want the only element of</param>
+        /// <returns>The only value in the queryable, or nothing if no such element exists or multiple elements exist</returns>
+        public static IMaybe<T> MaybeSingle<T>(this IQueryable<T> ts) where T : class
+        {
+            return ts.MaybeFirst(t => true);
+        }
     }
 }

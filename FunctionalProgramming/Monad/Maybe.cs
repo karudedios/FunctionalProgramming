@@ -1,6 +1,9 @@
-﻿using System;
-using FunctionalProgramming.Basics;
+﻿using FunctionalProgramming.Basics;
 using FunctionalProgramming.Monad.Outlaws;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using FunctionalProgramming.Helpers;
 
 namespace FunctionalProgramming.Monad
 {
@@ -15,6 +18,11 @@ namespace FunctionalProgramming.Monad
     /// </summary>
     public static class Maybe
     {
+        public static IMaybe<TValue> Pure<TValue>(TValue value) where TValue : struct
+        {
+            return new Just<TValue>(value);    
+        } 
+
         public static IMaybe<TValue> ToMaybe<TValue>(this TValue value)
         {
             return value == null ? Nothing<TValue>() : new Just<TValue>(value);
@@ -25,12 +33,19 @@ namespace FunctionalProgramming.Monad
             return new Nadda<TValue>();
         }
 
-        public static IMaybe<T> Where<T>(this IMaybe<T> m, Func<T, Boolean> predicate) 
+        public static IEnumerable<T> KeepSome<T>(this IEnumerable<IMaybe<T>> xs)
+        {
+            return xs.SelectMany(x => x.Match(
+                just: t => t.LiftEnumerable(),
+                nothing: Enumerable.Empty<T>));
+        }
+
+        public static IMaybe<T> Where<T>(this IMaybe<T> m, Func<T, bool> predicate)
         {
             return m.Match(
                 just: value => predicate(value) ? new Just<T>(value) : Nothing<T>(),
                 nothing: Nothing<T>);
-        } 
+        }
 
         public static IMaybe<TResult> Select<TValue, TResult>(this IMaybe<TValue> m, Func<TValue, TResult> f)
         {
@@ -92,9 +107,27 @@ namespace FunctionalProgramming.Monad
         public static Io<IMaybe<T>> GetOrLog<T>(this IMaybe<T> m, Func<Io<Unit>> logger)
         {
             return m.Match(
-                just: v => Io.Apply(() => v.ToMaybe()), 
+                just: v => Io.Apply(() => v.ToMaybe()),
                 nothing: () => logger().Select(u => Nothing<T>()));
-        } 
+        }
+
+        public static IMaybe<T> Or<T>(this IMaybe<T> left, IMaybe<T> right)
+        {
+            return left.Match(
+                just: v => v.ToMaybe(),
+                nothing: () => right);
+        }
+
+        /// <summary>
+        /// Select out the possible unknowns into a single unknown
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="m">maybe of maybe of type T</param>
+        /// <returns>maybe of type T</returns>
+        public static IMaybe<T> Join<T>(this IMaybe<IMaybe<T>> m)
+        {
+            return m.SelectMany(BasicFunctions.Identity);
+        }
 
         private class Just<TValue> : IMaybe<TValue>
         {
@@ -130,7 +163,7 @@ namespace FunctionalProgramming.Monad
 
             public override string ToString()
             {
-                return string.Format("Just({0})", _value);
+                return String.Format("Just({0})", _value);
             }
         }
 
@@ -158,6 +191,125 @@ namespace FunctionalProgramming.Monad
                 return "Nothing";
             }
         }
+
+        private static readonly Io<Unit> IoUnit = Io.Apply(() => Unit.Only);
+
+
+        /// <summary>
+        /// Helper that, given a potential value, will perform a side-effect if that value is not present
+        /// </summary>
+        /// <typeparam name="T">The type of value we potentially have</typeparam>
+        /// <param name="m">A potential value</param>
+        /// <param name="logger">A function that performs a side-effect</param>
+        /// <returns>A value representing an effectual computation that is only useful for its side-effects</returns>
+        public static Io<Unit> LogEmpty<T>(this IMaybe<T> m, Func<Io<Unit>> logger)
+        {
+            return m.Match(
+                just: _ => IoUnit,
+                nothing: logger);
+        }
+
+        /// <summary>
+        /// Helper that, given a potential value, will perform a side-effect if that value is present, or
+        /// a different side-effect if that value is not present.
+        /// </summary>
+        /// <typeparam name="T">The type of value we potentially have</typeparam>
+        /// <param name="m">A potential value</param>
+        /// <param name="justLogger">A function that performs a side-effect given a value of type 'T</param>
+        /// <param name="nothingLogger">A function that performs a side-effect</param>
+        /// <returns>A value representing an effectual computation that is only useful for its side-effects</returns>
+        public static Io<Unit> Log<T>(this IMaybe<T> m, Func<T, Io<Unit>> justLogger, Func<Io<Unit>> nothingLogger)
+        {
+            return m.Match(
+                just: justLogger,
+                nothing: nothingLogger);
+        }
+
+        #region ApplicativeStuff
+        public static IMaybe<Tuple<T1, T2>> With<T1, T2>(this IMaybe<T1> m1,
+            IMaybe<T2> m2)
+        {
+            return from t1 in m1
+                   from t2 in m2
+                   select Tuple.Create(t1, t2);
+        }
+
+        public static IMaybe<Tuple<T1, T2, T3>> With<T1, T2, T3>(this IMaybe<Tuple<T1, T2>> m1,
+            IMaybe<T3> m2)
+        {
+            return from tuple in m1
+                   from t3 in m2
+                   select Tuple.Create(tuple.Item1, tuple.Item2, t3);
+        }
+
+        public static IMaybe<Tuple<T1, T2, T3, T4>> With<T1, T2, T3, T4>(this IMaybe<Tuple<T1, T2, T3>> m1,
+            IMaybe<T4> m2)
+        {
+            return from tuple in m1
+                   from t4 in m2
+                   select Tuple.Create(tuple.Item1, tuple.Item2, tuple.Item3, t4);
+        }
+
+        public static IMaybe<Tuple<T1, T2, T3, T4, T5>> With<T1, T2, T3, T4, T5>(this IMaybe<Tuple<T1, T2, T3, T4>> m1,
+            IMaybe<T5> m2)
+        {
+            return from tuple in m1
+                   from t5 in m2
+                   select Tuple.Create(tuple.Item1, tuple.Item2, tuple.Item3, tuple.Item4, t5);
+        }
+
+        public static IMaybe<Tuple<T1, T2, T3, T4, T5, T6>> With<T1, T2, T3, T4, T5, T6>(this IMaybe<Tuple<T1, T2, T3, T4, T5>> m1,
+            IMaybe<T6> m2)
+        {
+            return from tuple in m1
+                   from t6 in m2
+                   select Tuple.Create(tuple.Item1, tuple.Item2, tuple.Item3, tuple.Item4, tuple.Item5, t6);
+        }
+
+        public static IMaybe<Tuple<T1, T2, T3, T4, T5, T6, T7>> With<T1, T2, T3, T4, T5, T6, T7>(this IMaybe<Tuple<T1, T2, T3, T4, T5, T6>> m1,
+            IMaybe<T7> m2)
+        {
+            return from tuple in m1
+                   from t7 in m2
+                   select Tuple.Create(tuple.Item1, tuple.Item2, tuple.Item3, tuple.Item4, tuple.Item5, tuple.Item6, t7);
+        }
+
+        public static IMaybe<TResult> Apply<T1, T2, TResult>(this IMaybe<Tuple<T1, T2>> m, Func<T1, T2, TResult> f)
+        {
+            return from tuple in m
+                   select tuple.Apply(f);
+        }
+
+        public static IMaybe<TResult> Apply<T1, T2, T3, TResult>(this IMaybe<Tuple<T1, T2, T3>> m, Func<T1, T2, T3, TResult> f)
+        {
+            return from tuple in m
+                   select tuple.Apply(f);
+        }
+
+        public static IMaybe<TResult> Apply<T1, T2, T3, T4, TResult>(this IMaybe<Tuple<T1, T2, T3, T4>> m, Func<T1, T2, T3, T4, TResult> f)
+        {
+            return from tuple in m
+                   select tuple.Apply(f);
+        }
+
+        public static IMaybe<TResult> Apply<T1, T2, T3, T4, T5, TResult>(this IMaybe<Tuple<T1, T2, T3, T4, T5>> m, Func<T1, T2, T3, T4, T5, TResult> f)
+        {
+            return from tuple in m
+                   select tuple.Apply(f);
+        }
+
+        public static IMaybe<TResult> Apply<T1, T2, T3, T4, T5, T6, TResult>(this IMaybe<Tuple<T1, T2, T3, T4, T5, T6>> m, Func<T1, T2, T3, T4, T5, T6, TResult> f)
+        {
+            return from tuple in m
+                   select tuple.Apply(f);
+        }
+
+        public static IMaybe<TResult> Apply<T1, T2, T3, T4, T5, T6, T7, TResult>(this IMaybe<Tuple<T1, T2, T3, T4, T5, T6, T7>> m, Func<T1, T2, T3, T4, T5, T6, T7, TResult> f)
+        {
+            return from tuple in m
+                   select tuple.Apply(f);
+        }
+        #endregion
     }
 
 }

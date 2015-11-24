@@ -11,6 +11,7 @@
     <AssemblyName>FunctionalProgramming</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -20,6 +21,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -28,6 +30,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <DebugSymbols>true</DebugSymbols>
@@ -37,6 +40,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <OutputPath>bin\x64\Release\</OutputPath>
@@ -46,6 +50,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -67,6 +72,7 @@
     <Compile Include="Helpers\FuncExtensions.cs" />
     <Compile Include="Helpers\RecursionHelper.cs" />
     <Compile Include="Helpers\Replacements.cs" />
+    <Compile Include="Helpers\TupleExtensions.cs" />
     <Compile Include="Monad\ConsList.cs" />
     <Compile Include="Monad\Either.cs" />
     <Compile Include="Monad\Io.cs" />
@@ -74,13 +80,12 @@
     <Compile Include="Monad\Maybe.cs" />
     <Compile Include="Monad\Outlaws\TaskExtensions.cs" />
     <Compile Include="Monad\Parsing\Parser.cs" />
-    <Compile Include="Monad\Parsing\ParseResult.cs" />
-    <Compile Include="Monad\Parsing\Repititions.cs" />
     <Compile Include="Monad\Reader.cs" />
     <Compile Include="Monad\State.cs" />
     <Compile Include="Monad\Stream.cs" />
     <Compile Include="Monad\Trampoline.cs" />
     <Compile Include="Monad\Outlaws\Try.cs" />
+    <Compile Include="Monad\Transformer\EitherEnumerable.cs" />
     <Compile Include="Monad\Transformer\EitherMaybe.cs" />
     <Compile Include="Monad\Transformer\IoEither.cs" />
     <Compile Include="Monad\Transformer\IoEitherMaybe.cs" />
@@ -88,15 +93,20 @@
     <Compile Include="Monad\Transformer\IoEnumerableMaybe.cs" />
     <Compile Include="Monad\Transformer\IoEnumerableTry.cs" />
     <Compile Include="Monad\Transformer\IoMaybe.cs" />
+    <Compile Include="Monad\Transformer\IoMaybeEnumerable.cs" />
     <Compile Include="Monad\Transformer\IoStateEither.cs" />
     <Compile Include="Monad\Transformer\IoStateEnumerable.cs" />
     <Compile Include="Monad\Transformer\IoStateTry.cs" />
     <Compile Include="Monad\Transformer\IoTry.cs" />
     <Compile Include="Monad\Transformer\IoTryMaybe.cs" />
+    <Compile Include="Monad\Transformer\ReaderEither.cs" />
+    <Compile Include="Monad\Transformer\ReaderTry.cs" />
     <Compile Include="Monad\Transformer\StateEither.cs" />
-    <Compile Include="Monad\Transformer\IoState.cs" />
+    <Compile Include="Monad\Transformer\StateIo.cs" />
     <Compile Include="Monad\Transformer\StateEnumerable.cs" />
     <Compile Include="Monad\Transformer\StateTry.cs" />
+    <Compile Include="Monad\Transformer\StateTryEnumerable.cs" />
+    <Compile Include="Monad\Transformer\TryEnumerable.cs" />
     <Compile Include="Monad\Transformer\TryMaybe.cs" />
     <Compile Include="Monad\Validation.cs" />
     <Compile Include="Monad\Writer.cs" />
