@@ -55,6 +55,22 @@ namespace FunctionalProgramming.Basics
             Func<IEither<TLeft, TRight>> alternative)
         {
             return predicate ? consequent().AsRight<TLeft, TRight>() : alternative();
+    }
+
+        /// <summary>
+        /// Convenience function for returning disparate types where both consequent and alternative branches
+        /// are disjoint unions.
+        /// </summary>
+        /// <typeparam name="TLeft">The type of value we will get if the predicate is unsatisfied</typeparam>
+        /// <typeparam name="TRight">The type of value we will get if the predicate is satisfied</typeparam>
+        /// <param name="predicate">A hypothesis expressed as a boolean</param>
+        /// <param name="consequent">The conclusion we can draw from the predicate holding (returns TLeft \/ TRight)</param>
+        /// <param name="alternative">The conclusion we can draw from the predicate failing to hold (returns TLeft \/ TRight)</param>
+        /// <returns>TLeft \/ TRight</returns>
+        public static IEither<TLeft, TRight> EIf<TLeft, TRight>(bool predicate, Func<IEither<TLeft, TRight>> consequent,
+            Func<IEither<TLeft, TRight>> alternative)
+        {
+          return predicate ? consequent() : alternative();
         }
 
         /// <summary>
