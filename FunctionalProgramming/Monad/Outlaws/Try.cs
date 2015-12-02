@@ -128,6 +128,19 @@ namespace FunctionalProgramming.Monad.Outlaws
         }
 
         /// <summary>
+        /// Helper that deliberately constructs a failed computation based on a given predicate
+        /// </summary>
+        /// <param name="ex">The exception to be ultimately returned given the correctness of the hypotheses</param>
+        /// <param name="predicate">The hypotheses expressed as a boolean</param>
+        /// <returns></returns>
+        public static Try<Unit> FailWhen(this Exception ex, bool predicate)
+        {
+            return Attempt(() => {
+                if (predicate) throw ex;
+            });
+        }
+
+        /// <summary>
         /// Lifts the function 'TInitial -> 'TResult from the category C# to the category 'Try', and then applies it to the value 'm'
         /// </summary>
         /// <typeparam name="TInitial"></typeparam>
