@@ -75,7 +75,7 @@ namespace FunctionalProgramming.Monad
         public static IConsList<TResult> Select<TInitial, TResult>(this IConsList<TInitial> xs,
             Func<TInitial, TResult> f)
         {
-            return SelectTrampoline(xs, f).Run();
+            return SelectTrampoline(xs, f).Run().Reverse();
         }
 
         private static Trampoline<IConsList<T2>> SelectTrampoline<T1, T2>(this IConsList<T1> xs, Func<T1, T2> f)

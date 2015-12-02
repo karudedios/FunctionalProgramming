@@ -57,5 +57,20 @@ namespace FunctionalProgramming.Tests.MonadTests
             Assert.AreEqual(enumerable, expected);
             Console.WriteLine(sw.ElapsedMilliseconds);
         }
+
+        [Test]
+        public void TestSelectTrampoline()
+        {
+            var seed = Enumerable.Range(0, 10000);
+            var expected = seed.Select(x => x * 3);
+
+            var xs = seed.ToConsList();
+            var sw = Stopwatch.StartNew();
+
+            var enumerable = xs.Select(x => x * 3).AsEnumerable();
+            Assert.AreEqual(expected, enumerable);
+
+            Console.WriteLine(sw.ElapsedMilliseconds);
+        }
     }
 }
