@@ -1,6 +1,8 @@
-﻿using System;
+﻿using FunctionalProgramming.Basics;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace FunctionalProgramming.Monad
 {
@@ -112,6 +114,15 @@ namespace FunctionalProgramming.Monad
                 nil: () => initial);
         }
 
+        public static TResult FoldL<TResult>(this IConsList<TResult> xs, Func<TResult, TResult, TResult> f)
+        {
+            return xs.Match(
+                cons: (h, t) => t.Match(
+                    cons: (h2, t2) => FoldL(t2, f(h, h2), f),
+                    nil: () => h),
+                nil: () => default(TResult));
+        }
+
         public static IConsList<T> Reverse<T>(this IConsList<T> xs)
         {
             return xs.Match(
@@ -158,15 +169,13 @@ namespace FunctionalProgramming.Monad
             {
                 var next = _head;
                 var tail = _tail;
+
                 while (tail != null)
                 {
                     yield return next;
-                    next = tail.Head.Match(
-                        h => h,
-                        () => default(T));
-                    tail = tail.Tail.Match(
-                        t => t,
-                        () => null);
+
+                    next = tail.Head.GetOrElse(() => default(T));
+                    tail = tail.Tail.GetOrElse(() => null);
                 }
             }
 
@@ -177,24 +186,17 @@ namespace FunctionalProgramming.Monad
 
             public override bool Equals(object obj)
             {
-                var retval = false;
-                var list = obj as NonEmptyList<T>;
-                if (list != null)
-                {
-                    var ol = list;
-                    retval = Head.Equals(ol.Head) && Tail.Equals(ol.Tail);
-                }
-                return retval;
+                return obj.Cast<NonEmptyList<T>>().Select(list => Head.Equals(list.Head) && Tail.Equals(list.Tail)).GetOrElse(() => false);
             }
 
             public override int GetHashCode()
             {
-                return FoldL(this, 181, (hash, t) => (hash*503) + t.GetHashCode());
+                return this.FoldL(181, (hash, t) => (hash*503) + t.GetHashCode());
             }
 
             public override string ToString()
             {
-                return AsEnumerable().Select(x => x.ToString()).Aggregate((str, s) => string.Format("{0},{1}", str, s));
+                return this.Select(x => x.ToString()).FoldL((str, s) => string.Format("{0},{1}", str, s));
             }
         }
 
